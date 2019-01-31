@@ -12,7 +12,7 @@ var http = require('http');
  * Get port from environment and store in Express.
  */
 
-var port = normalizePort(process.env.PORT || '3000');
+var port = normalizePort(process.env.PORT || '3001');
 app.set('port', port);
 
 /**
@@ -89,10 +89,13 @@ function onListening() {
   debug('Listening on ' + bind);
 }
 const ffmpeg = require('ffmpeg');
+const google_storage = require('../service/google_storage');
+const bucketName = 'my-project-for-short-video';
+const filename = 'videos/out.mp4';
 
 (async () => {
 
-    try {
+    /*try {
         let video = await (new ffmpeg('videos/ico_large.MOV'));
 
         await video
@@ -109,5 +112,10 @@ const ffmpeg = require('ffmpeg');
     } catch (e) {
         console.log(e.code);
         console.log(e.msg);
-    }
+    }*/
+
+    //google_storage.upload(bucketName, filename);
+    google_storage.getUrl(bucketName, 'out.mp4');
+    //google_storage.create();
+
 })();
