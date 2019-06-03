@@ -90,14 +90,16 @@ function onListening() {
 }
 const ffmpeg = require('ffmpeg');
 const google_storage = require('../service/google_storage');
-const bucketName = 'my-project-for-short-video';
+const bucketName = 'zonto_video';
 const filename = 'videos/out.mp4';
 
 (async () => {
 
-    /*try {
+/*    try {
         let video = await (new ffmpeg('videos/ico_large.MOV'));
 
+
+        //Обрезка видео
         await video
             .setVideoSize('140x?', true, false)
             .setVideoStartTime(2)

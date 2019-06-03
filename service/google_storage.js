@@ -1,9 +1,10 @@
 const {Storage} = require('@google-cloud/storage');
-const projectId = 'pragmatic-bongo-230310';
 const storage = new Storage({
-    projectId: projectId,
-    keyFilename: 'apiKeys/api.json' // app-google service-google
+    projectId: process.env.PROJECT_ID,
+    keyFilename: process.env.PATH_TO_API_FILE,
 });
+const ffmpeg = require('ffmpeg');
+
 
 async function create() {
     storage
@@ -76,29 +77,56 @@ async function download(bucketName, srcFilename, destFilename) {
 }
 
 async function getUrl (bucketName, fileName) {
-    var config = {
+    let config = {
         action: 'read',
         expires: '03-17-2025'
-    };
+    }, url;
 
-    console.log("_______--" + fileName);
-    await storage
-        .bucket(bucketName)
-        .file(fileName).getSignedUrl(config, function(err, url) {
-            if (err) {
-                console.error(err);
-                return;
-            }
-            console.log(url);
-        });
-    console.log("_______");
+    try {
+        console.log("_______--" + fileName);
+        url = await storage
+            .bucket(bucketName)
+            .file(fileName).getSignedUrl(config);
+
+        console.log(url[0]);
+        console.log("_______");
+    } catch (e) {
+        console.error(e);
+        return false;
+    }
+    return url.length ? url[0] : false;
     //return `https://storage.googleapis.com/${CLOUD_BUCKET}/${filename}`;
 }
 
-async function setPermission(filename) {
+async function compressFile(path, filename) {
+    try {
+        let video = await (new ffmpeg(path));
+        let compressed_path = `videos/compressed_${filename}`;
+        console.log(path);
+        //Обрезка видео
+        await video
+            .setVideoSize('140x?', true, false)
+            .setVideoStartTime(2)
+            .setVideoDuration(3)
+            .save(compressed_path, function (error, file) {
+                if (error) {
+                    console.error(error)
+                } else {
+                    console.log('Video file: ' + file);
+                }
 
+            });
+
+        return compressed_path;
+
+    } catch (e) {
+        console.log(e.code);
+        console.log(e.msg);
+        return false;
+    }
 }
 
+module.exports.compressFile = compressFile;
 module.exports.upload = upload;
 module.exports.download = download;
 module.exports.getUrl = getUrl;
