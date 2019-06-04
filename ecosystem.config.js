@@ -15,6 +15,9 @@ module.exports = {
                 BUCKET_NAME    : 'zonto_video',
                 PROJECT_ID    : 'shining-haiku-236515',
                 PATH_TO_API_FILE    : 'apiKeys/api.json',
+                CUT_VIDEO_OFFSET    : '2',
+                CUT_VIDEO_LIMIT    : '3',
+                SIZE_VIDEO    : '140x?', //https://www.npmjs.com/package/ffmpeg
 
             },
             exec_mode: "cluster",

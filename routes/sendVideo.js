@@ -5,7 +5,6 @@ const google_storage = require('../service/google_storage');
 //const ffmpeg = require('fluent-ffmpeg');
 const ffmpeg = require('ffmpeg');
 const path = require('path');
-let fstream;
 
 /* GET users listing. */
 router.post('/', function (req, res, next) {
@@ -35,9 +34,9 @@ router.post('/', function (req, res, next) {
                 let video = await (new ffmpeg(path));
 
                 await video
-                    .setVideoSize('140x?', true, false)
-                    .setVideoStartTime(2)
-                    .setVideoDuration(3)
+                    .setVideoSize(process.env.SIZE_VIDEO, true, false)
+                    .setVideoStartTime(parseInt(process.env.CUT_VIDEO_OFFSET))
+                    .setVideoDuration(parseInt(process.env.CUT_VIDEO_LIMIT))
                     .save(path_compress, async (error, file) => {await sendToStore(error, file, filename, res)});
 
 
