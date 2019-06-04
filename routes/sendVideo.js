@@ -2,35 +2,65 @@ var express = require('express');
 var router = express.Router();
 var fs = require('fs');
 const google_storage = require('../service/google_storage');
+//const ffmpeg = require('fluent-ffmpeg');
+const ffmpeg = require('ffmpeg');
+
+let fstream;
 
 /* GET users listing. */
 router.post('/', function (req, res, next) {
-    var fstream;
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+
+    let fstream;
+
     req.pipe(req.busboy);
     req.busboy.on('file', function (fieldname, file, filename) {
-        filename = filename.replace(/ /g, "_");
-        filename = filename.replace(/\(|\)/g, "");
+        filename = validateFileName(filename);
+
         let path = 'videos/' + filename;
-        console.log("Uploading: " + filename);
 
         fstream = fs.createWriteStream(path);
+
         file.pipe(fstream);
         fstream.on('close', async function () {
-            let path_compress = await google_storage.compressFile(path, filename);
-            console.log("path_compress: " + path_compress);
 
-            await google_storage.upload(process.env.BUCKET_NAME, path_compress);
-            let link = await google_storage.getUrl(process.env.BUCKET_NAME, filename);
+            console.log("path, filename: ", path, filename);
+            let path_compress = `videos/compressed_${filename}`;
 
-            console.log('link', link);
 
-            res.status(200).send({
-                'status': 'ok',
-                'link': link,
-            });
+            try {
+                let video = await (new ffmpeg(path));
+
+                await video
+                    .setVideoSize('140x?', true, false)
+                    .setVideoStartTime(2)
+                    .setVideoDuration(3)
+                    .save(path_compress, async (error, file) => {await google_storage.sendToStore(error, file, filename, res)});
+
+
+            } catch (error) {
+                await google_storage.removeFile(filename);
+                await google_storage.removeFile(`compressed_${filename}`);
+
+                console.error('code', error.code, 'msg', error.msg);
+
+                res.status(500).send({
+                    'status': 'err',
+                    'msg': error.msg,
+                })
+            }
+
         });
     });
-    //res.sendFile(appRoot + '/videos/ico_large.MOV')
 });
+
+
+function validateFileName(filename) {
+    filename = filename.replace(/ /g, "_");
+    filename = filename.replace(/\(|\)/g, "");
+
+    return filename;
+}
 
 module.exports = router;

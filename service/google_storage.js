@@ -4,7 +4,7 @@ const storage = new Storage({
     keyFilename: process.env.PATH_TO_API_FILE,
 });
 const ffmpeg = require('ffmpeg');
-
+const path = require('path');
 
 async function create() {
     storage
@@ -32,7 +32,7 @@ async function upload(bucketName, filename) {
 // const bucketName = 'Name of a bucket, e.g. my-bucket';
 // const filename = 'Local file to upload, e.g. ./local/path/to/file.txt';
 
-    console.log(await storage.bucket(bucketName));
+    //console.log(await storage.bucket(bucketName));
 // Uploads a local file to the bucket
     await storage.bucket(bucketName).upload(filename, {
         // Support for HTTP requests made with `Accept-Encoding: gzip`
@@ -76,7 +76,7 @@ async function download(bucketName, srcFilename, destFilename) {
     );
 }
 
-async function getUrl (bucketName, fileName) {
+async function getUrl(bucketName, fileName) {
     let config = {
         action: 'read',
         expires: '03-17-2025'
@@ -101,23 +101,31 @@ async function getUrl (bucketName, fileName) {
 async function compressFile(path, filename) {
     try {
         let video = await (new ffmpeg(path));
-        let compressed_path = `videos/compressed_${filename}`;
-        console.log(path);
+        let path_compress = `videos/compressed_${filename}`;
+        console.log('path', path);
+        console.log('path_compress', path_compress);
         //Обрезка видео
+        console.error('____________----compresing--------________');
+
         await video
             .setVideoSize('140x?', true, false)
-            .setVideoStartTime(2)
-            .setVideoDuration(3)
-            .save(compressed_path, function (error, file) {
+            /*            .setVideoStartTime(2)
+                        .setVideoDuration(3)*/
+            .save(path_compress, function (error, file) {
                 if (error) {
-                    console.error(error)
+                    console.error('error', error)
                 } else {
                     console.log('Video file: ' + file);
                 }
 
             });
 
-        return compressed_path;
+        console.error('____________----compresing--------________');
+
+        return {
+            path_compress,
+            compressed_filename: `compressed_${filename}`
+        };
 
     } catch (e) {
         console.log(e.code);
@@ -126,11 +134,58 @@ async function compressFile(path, filename) {
     }
 }
 
+async function sendToStore(error, file, filename, res) {
+    if (error) {
+        console.log('Video error: ' + error);
+        removeFile(filename);
+        removeFile(`compressed_${filename}`);
+
+
+        res.status(500).send({
+            'status': 'err',
+            'msg': error,
+        })
+    } else {
+        console.log('conversion Done: ' + file);
+
+        await upload(process.env.BUCKET_NAME, file);
+
+        removeFile(filename);
+        removeFile(`compressed_${filename}`);
+
+        let link = await getUrl(process.env.BUCKET_NAME, `compressed_${filename}`);
+
+
+        res.status(200).send({
+            'status': 'ok',
+            'path': link,
+        })
+    }
+
+}
+
+function removeFile(name) {
+    let file_path = path.join(appRoot, 'videos', name);
+
+    try {
+        if (fs.existsSync(file_path)) {
+            fs.unlinkSync(file_path);
+            console.log('File has been removed');
+        } else {
+            console.info(file_path , "File doesn't exist, won't remove it.");
+        }
+    } catch (e) {
+        console.info(file_path, "File doesn't exist, won't remove it.");
+    }
+}
+
 module.exports.compressFile = compressFile;
 module.exports.upload = upload;
 module.exports.download = download;
 module.exports.getUrl = getUrl;
 module.exports.create = create;
+module.exports.sendToStore = sendToStore;
+module.exports.removeFile = removeFile;
 
 
 //todo before install

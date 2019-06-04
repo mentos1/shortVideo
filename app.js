@@ -4,13 +4,17 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var busboy = require('connect-busboy');
-global.appRoot = path.resolve(__dirname);
+var bodyParser = require('body-parser');
 
+global.appRoot = path.resolve(__dirname);
 var indexRouter = require('./routes/index');
 var sendVideo = require('./routes/sendVideo');
-var outVideo = require('./routes/outVideo');
 
+var outVideo = require('./routes/outVideo');
 var app = express();
+
+app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 
 app.use(busboy());
 app.use(logger('dev'));
@@ -21,6 +25,8 @@ app.use(cookieParser());
 app.use('/', indexRouter);
 app.use('/sendVideo', sendVideo);
 app.use('/outVideo', outVideo);
+
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -35,7 +41,7 @@ app.use(function(err, req, res, next) {
 
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  res.send(err)
 });
 
 module.exports = app;
