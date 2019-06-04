@@ -5,6 +5,7 @@ const google_storage = require('../service/google_storage');
 //const ffmpeg = require('fluent-ffmpeg');
 const ffmpeg = require('ffmpeg');
 const path = require('path');
+const extractFrames = require('ffmpeg-extract-frames');
 
 /* GET users listing. */
 router.post('/', function (req, res, next) {
@@ -27,17 +28,19 @@ router.post('/', function (req, res, next) {
             console.log("path, filename: ", path, filename);
             let path_compress = `videos/compressed_${filename}`;
 
+
 /*            removeFile(filename);
             removeFile(`compressed_${filename}`);*/
 
             try {
                 let video = await (new ffmpeg(path));
+                let path_jpg = await getJpg(path);
 
                 await video
                     .setVideoSize(process.env.SIZE_VIDEO, true, false)
                     .setVideoStartTime(parseInt(process.env.CUT_VIDEO_OFFSET))
                     .setVideoDuration(parseInt(process.env.CUT_VIDEO_LIMIT))
-                    .save(path_compress, async (error, file) => {await sendToStore(error, file, filename, res)});
+                    .save(path_compress, async (error, file) => {await sendToStore(error, file, filename, path_jpg, res)});
 
 
             } catch (error) {
@@ -56,7 +59,7 @@ router.post('/', function (req, res, next) {
     });
 });
 
-async function sendToStore(error, file, filename, res) {
+async function sendToStore(error, file, filename, path_jpg, res) {
     if (error) {
         console.log('Video error: ' + error);
         removeFile(filename);
@@ -80,8 +83,11 @@ async function sendToStore(error, file, filename, res) {
 
         res.status(200).send({
             'status': 'ok',
-            'id': Math.random() * (100000000000000 - 1) + 1, //todo
-            'path': link,
+            'link': link,
+            'photo':  {
+                'id': rand(), //todo
+                'path' : path_jpg
+            },
         })
     }
 
@@ -108,6 +114,29 @@ function validateFileName(filename) {
     filename = filename.replace(/\(|\)/g, "");
 
     return filename;
+}
+
+function rand() {
+    return Math.round(Math.random() * (1000000000 - 1) + 1);
+}
+
+async function getJpg(path_file) {
+    let name_jpg = rand() + '.jpg';
+    let path_jpg = `videos/` + name_jpg;
+
+    await extractFrames({
+        input: path_file,
+        output: path_jpg,
+        offsets: [
+            process.env.CUT_VIDEO_OFFSET,
+        ]
+    });
+
+    await google_storage.upload(process.env.BUCKET_NAME, path_jpg);
+
+    removeFile(name_jpg);
+
+    return await google_storage.getUrl(process.env.BUCKET_NAME, name_jpg);
 }
 
 module.exports = router;
